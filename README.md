@@ -20,10 +20,10 @@ As with Brian's code, [ArduinoJson](arduinojson.org/) is used to parse the JSON 
 
 1. Download the files however you like
 2. Open the pico-satellite.ino file with the Arduino IDE
-3. Edit the ssid and password variables and replace 'YOUR_NETWORK_SSID_HERE' and 'YOUR_NETWORK_KEY_HERE' with your own respective information
+3. Edit the ssid and password variables and replace `YOUR_NETWORK_SSID_HERE` and `YOUR_NETWORK_KEY_HERE` with your own respective information
 4. Go to [www.n2yo.com/api/](www.n2yo.com/api/) and register for an account. 
 5. Log in, and get your API key
-6. Scroll down the code file until you reach the line 'client.print("/rest/v1/satellite/positions/SAT_ID/50/-1/0/1/&apiKey=YOUR_API_KEY_HERE")';
-7. Replace 'YOUR_API_KEY_HERE' with your own API key from n2yo
-8. Replace 'SAT_ID' with the satellite NORAD ID from n2yo that you want to track e.g. 25544 for the ISS
+6. Scroll down the code file until you reach the line `client.print("/rest/v1/satellite/positions/SAT_ID/50/-1/0/1/&apiKey=YOUR_API_KEY_HERE");`
+7. Replace `YOUR_API_KEY_HERE` with your own API key from n2yo
+8. Replace `SAT_ID` with the satellite NORAD ID from n2yo that you want to track e.g. 25544 for the ISS
 9. Upload to the pico and enjoy!
