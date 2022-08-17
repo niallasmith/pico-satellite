@@ -125,7 +125,7 @@ void makeHTTPRequest() {
   // Send HTTP request
   client.print(F("GET "));
   // This is the second half of a request (everything that comes after the base URL)
-  client.print("/rest/v1/satellite/positions/25544/50/-1/0/1/&apiKey=YOUR_API_KEY_HERE"); 
+  client.print("/rest/v1/satellite/positions/NORAD_ID/50/-1/0/1/&apiKey=YOUR_API_KEY_HERE"); 
   client.println(F(" HTTP/1.1"));
 
   //Headers
