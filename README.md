@@ -2,10 +2,14 @@
 
 pico-satellite is an arduino script for the Raspberry Pi Pico W and the Pimoroni Pico Unicorn 16x7 display that can retrieve satellite position data and displays it on a world map. 
 
+![Working project](/assets/main.jpg)
+
 It was inspired by [John Chinner's project on Twitter](https://twitter.com/JohnChinner/status/1554912401253883904). 
 The obvious difference between the projects is such: John's is written in MicroPython and uses the ISS-info library. 
 I don't know MicroPython, nor do I much care for the idea of porting the library to C++ and/or learning the orbital mechanics required to develop a tracking library for any satellite given the TLE. 
 As such, a simple API will suffice.
+
+![Tracking the ISS](/assets/iss_track.jpg)
 
 ## Software
 
