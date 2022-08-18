@@ -9,8 +9,15 @@ char password[] = "YOUR_NETWORK_KEY_HERE";  // your network key
 WiFiClientSecure client;
 #define TEST_HOST "api.n2yo.com"
 #define TEST_HOST_FINGERPRINT "42 7e 52 21 b0 ef 4e 3b c8 d0 59 2e c6 ba d6 63 7a 87 6c 46"
-double satlatitude;
-double satlongitude;
+#define apiKey "YOUR_API_KEY_HERE"
+char satID0[] = "25544"; // SPACE STATION
+char satID1[] = "33591"; // NOAA 19
+char satID2[] = "38771"; // METOP-B
+char satID3[] = "40069"; // METEOR M2
+char *satIDArray[4] = {satID0, satID1, satID2, satID3};
+double satLatitude;
+double satLongitude;
+int satCoord[4][2] = {{0, 0}, {0, 0}, {0, 0}, {0, 0}};
 
 PicoUnicorn unicorn = PicoUnicorn();
 // Pixel coordinates for each blue and green pixel, creating the image of the (mercator projected) earth
@@ -33,7 +40,7 @@ int earthGreen[48][2] = {
   {4, 6},
 };
 int earthBrightness = 64; // set brightness for earth image
-int satBrightness = 96;
+int satBrightness = 164; // set brightness for satellite pixel
 
 void setup() {
   // Initialise Pimoroni Unicorn and clear the display
@@ -63,55 +70,70 @@ void setup() {
   Serial.println(ip);
   client.setFingerprint(TEST_HOST_FINGERPRINT);
 
-  // Retrieve data from n2yo api
-  makeHTTPRequest();
-
-  // Convert latitude & longitude into useful Unicorn display X & Y coordinates
-  int displayLongitude = convertLongitude();
-  int displayLatitude = convertLatitude();
-
-  // Set red pixel at location of satellite
-  unicorn.set_pixel(displayLongitude, displayLatitude, satBrightness, 0, 0);
-
-  // Print display latitude & longitude XY coordinates
-  Serial.print("X:");
-  Serial.print(displayLongitude);
-  Serial.print(" , Y: ");
-  Serial.println(displayLatitude);
+  updateSatData(); // HTTP request to initially set satellite data
+  unicorn.set_pixel(satCoord[0][0], satCoord[0][1], satBrightness, 0, 0); // Set red pixel at location of satellite 0
 }
 
 
 void loop() {
-  // Hold for 60 seconds to slow api request rate
+
+  // Hold for 2 minutes to slow api request rate
   int startTime = millis();
-  while (millis() - startTime <= 60000) {
-    delay(250);
+  while (millis() - startTime <= 120000) {
+
+    if (unicorn.is_pressed(unicorn.A)) {
+      displayEarth(); // Display image of the earth
+      unicorn.set_pixel(satCoord[0][0], satCoord[0][1], satBrightness, 0, 0); // Set red pixel at location of satellite 0
+      
+      // While button held, hold to stop display flashing
+      while (unicorn.is_pressed(unicorn.A)) {
+        delay(10);
+      }
+      return; // Deal with multiple button presses in order of precedence A > B > X > Y
+    }
+
+    if (unicorn.is_pressed(unicorn.B)) {
+      displayEarth(); // Display image of the earth
+      unicorn.set_pixel(satCoord[1][0], satCoord[1][1], satBrightness, 0, 0); // Set red pixel at location of satellite 1
+
+      // While button held, hold to stop display flashing
+      while (unicorn.is_pressed(unicorn.B)) {
+        delay(10);
+      }
+      return; // Deal with multiple button presses in order of precedence A > B > X > Y
+    }
+
+    if (unicorn.is_pressed(unicorn.X)) {
+      displayEarth(); // Display image of the earth
+      unicorn.set_pixel(satCoord[2][0], satCoord[2][1], satBrightness, 0, 0); // Set red pixel at location of satellite 2
+
+      // While button held, hold to stop display flashing
+      while (unicorn.is_pressed(unicorn.X)) {
+        delay(10);
+      }
+      return; // Deal with multiple button presses in order of precedence A > B > X > Y
+    }
+
+    if (unicorn.is_pressed(unicorn.Y)) {
+      displayEarth(); // Display image of the earth
+      unicorn.set_pixel(satCoord[3][0], satCoord[3][1], satBrightness, 0, 0); // Set red pixel at location of satellite 3
+
+      // While button held, hold to stop display flashing
+      while (unicorn.is_pressed(unicorn.Y)) {
+        delay(10);
+      }
+      return; // Deal with multiple button presses in order of precedence A > B > X > Y
+    }
   }
 
-  // Make a HTTP request to retrieve data from n2yo api
-  Serial.println("HTTP request");
-  makeHTTPRequest();
+  updateSatData(); // After 2 min hold, update satellite location data
 
-  displayEarth(); // Display image of the earth
-
-  // Convert latitude & longitude into useful Unicorn display X & Y coordinates
-  int displayLongitude = convertLongitude();
-  int displayLatitude = convertLatitude();
-
-  // Set red pixel at location of satellite
-  unicorn.set_pixel(displayLongitude, displayLatitude, satBrightness, 0, 0);
-
-  // Print display latitude & longitude XY coordinates
-  Serial.print("X:");
-  Serial.print(displayLongitude);
-  Serial.print(" , Y: ");
-  Serial.println(displayLatitude);
 }
 
 
-void makeHTTPRequest() {
+void makeHTTPRequest(char *satID) {
 
-  client.setTimeout(10000); // set a long timeout in case the server is slow to respond or whatever
+  client.setTimeout(10000); // Set a long timeout in case the server is slow to respond or whatever
 
   // Opening connection to server
   if (!client.connect(TEST_HOST, 443))
@@ -125,7 +147,10 @@ void makeHTTPRequest() {
   // Send HTTP request
   client.print(F("GET "));
   // This is the second half of a request (everything that comes after the base URL)
-  client.print("/rest/v1/satellite/positions/NORAD_ID/50/-1/0/1/&apiKey=YOUR_API_KEY_HERE"); 
+  client.print("/rest/v1/satellite/positions/");
+  client.print(satID); // %2C == ,
+  client.print("/50/-1/0/1/&apiKey=");
+  client.print(apiKey);
   client.println(F(" HTTP/1.1"));
 
   //Headers
@@ -168,30 +193,54 @@ void makeHTTPRequest() {
   DeserializationError error = deserializeJson(doc, client);
 
   if (!error) {
-    JsonObject info = doc["info"];
-    const char* satname = info["satname"]; // "SPACE STATION"
-    int satid = info["satid"]; // 25544
-    int transactionscount = info["transactionscount"]; // 0
+    //    JsonObject info = doc["info"];
+    //    const char* satname = info["satname"];
+    //    int satid = info["satid"];
+    //    int transactionscount = info["transactionscount"];
 
     JsonObject positions = doc["positions"][0];
-    satlatitude = positions["satlatitude"]; // 4.34709191
-    satlongitude = positions["satlongitude"]; // 46.86749667
-    float sataltitude = positions["sataltitude"]; // 413.82
-    float azimuth = positions["azimuth"]; // 121.74
-    float elevation = positions["elevation"]; // -27.71
-    double ra = positions["ra"]; // 250.07401841
-    double dec = positions["dec"]; // -40.83069627
-    long api_timestamp = positions["timestamp"]; // 1660656544
-    bool eclipsed = positions["eclipsed"]; // false
+    satLatitude = positions["satlatitude"];
+    satLongitude = positions["satlongitude"];
+    //    float sataltitude = positions["sataltitude"];
+    //    float azimuth = positions["azimuth"];
+    //    float elevation = positions["elevation"];
+    //    double ra = positions["ra"];
+    //    double dec = positions["dec"];
+    //    long api_timestamp = positions["timestamp"];
+    //    bool eclipsed = positions["eclipsed"];
 
-    Serial.print("satlatitude:");
-    Serial.println(satlatitude);
-    Serial.print("satlongitude:");
-    Serial.println(satlongitude);
   } else {
     Serial.print(F("deserializeJson() failed: "));
     Serial.println(error.f_str());
     return;
+  }
+
+}
+
+
+void updateSatData() {
+  // loop for all 4 satellite ID's set
+  for (int i = 0; i <= 3; i++) {
+    Serial.print("HTTP request ");
+    Serial.print(i);
+    Serial.print(" satID: ");
+    Serial.print(satIDArray[i]);
+
+    // Retrieve data from n2yo api
+    makeHTTPRequest(satIDArray[i]);
+
+    // Convert latitude & longitude into useful Unicorn display X & Y coordinates
+    satCoord[i][0] = convertLongitude();
+    satCoord[i][1] = convertLatitude();
+
+    Serial.print(" DONE LAT:");
+    Serial.print(satLatitude);
+    Serial.print(" LONG:");
+    Serial.print(satLongitude);
+    Serial.print(" X: ");
+    Serial.print(satCoord[i][1]);
+    Serial.print(" Y: ");
+    Serial.println(satCoord[i][0]);
   }
 }
 
@@ -201,6 +250,7 @@ void displayEarth() {
   for (int i = 0; i <= 63; i++) {
     unicorn.set_pixel(earthBlue[i][0], earthBlue[i][1], 0, 0, earthBrightness);
   }
+
   for (int i = 0; i <= 47; i++) {
     unicorn.set_pixel(earthGreen[i][0], earthGreen[i][1], 0, earthBrightness, 0);
   }
@@ -208,12 +258,12 @@ void displayEarth() {
 
 
 int convertLongitude() {
-  int convertLongitude = round(15 * ((satlongitude + 180) / 360));
+  int convertLongitude = round(15 * ((satLongitude + 180) / 360));
   return convertLongitude;
 }
 
 
 int convertLatitude() {
-  int convertLatitude = 6 - round(6 * ((satlatitude + 90) / 180));
+  int convertLatitude = 6 - round(6 * ((satLatitude + 90) / 180));
   return convertLatitude;
 }
