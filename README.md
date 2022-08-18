@@ -5,9 +5,11 @@ pico-satellite is an arduino script for the Raspberry Pi Pico W and the Pimoroni
 ![Working project](/assets/main.jpg)
 
 It was inspired by [John Chinner's project on Twitter](https://twitter.com/JohnChinner/status/1554912401253883904). 
-The obvious difference between the projects is such: John's is written in MicroPython and uses the ISS-info library. 
+The obvious difference between the projects is that John's is written in MicroPython and uses the ISS-info library. 
 I don't know MicroPython, nor do I much care for the idea of porting the library to C++ and/or learning the orbital mechanics required to develop a tracking library for any satellite given the TLE. 
-As such, a simple API will suffice.
+Consequntly, this project just uses a simple API.
+
+With the v1.1.0 release, 4 different satellites are abled to be tracked with the buttons controlling which satellite is currently in view.
 
 ![Tracking the ISS](/assets/iss_track.jpg)
 
@@ -35,7 +37,6 @@ As with Brian's code, [ArduinoJson](https://arduinojson.org/) is used to parse t
 3. Edit the ssid and password variables and replace `YOUR_NETWORK_SSID_HERE` and `YOUR_NETWORK_KEY_HERE` with your own respective information
 4. Go to [www.n2yo.com/api/](www.n2yo.com/api/) and register for an account. 
 5. Log in, and get your API key
-6. Scroll down the code file until you reach the line `client.print("/rest/v1/satellite/positions/NORAD_ID/50/-1/0/1/&apiKey=YOUR_API_KEY_HERE");`
-7. Replace `YOUR_API_KEY_HERE` with your own API key from n2yo
-8. Replace `NORAD_ID` with the satellite NORAD ID from n2yo that you want to track e.g. 25544 for the ISS
-9. Upload to the pico and enjoy!
+6. Replace `YOUR_API_KEY_HERE` with your own API key from n2yo
+7. Replace `satID0`, `satID1`, `satID2`, and `satID3` with the satellite NORAD ID's from n2yo that you want to track e.g. 25544 for the ISS. There are default set values already.
+8. Upload to the pico and enjoy!
