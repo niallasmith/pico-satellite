@@ -1,23 +1,23 @@
 #include <WiFi.h>
 #include <ArduinoJson.h>
-
 #include <Adafruit_GFX.h>
 #include <Pico_Unicorn_GFX.h>
 
 char ssid[] = "YOUR_NETWORK_SSID_HERE";       // your network SSID (name)
 char password[] = "YOUR_NETWORK_KEY_HERE";  // your network key
+#define apiKey "YOUR_API_KEY_HERE" // your api key
 WiFiClientSecure client;
 #define TEST_HOST "api.n2yo.com"
-#define TEST_HOST_FINGERPRINT "42 7e 52 21 b0 ef 4e 3b c8 d0 59 2e c6 ba d6 63 7a 87 6c 46"
-#define apiKey "YOUR_API_KEY_HERE"
+#define TEST_HOST_FINGERPRINT "42 7e 52 21 b0 ef 4e 3b c8 d0 59 2e c6 ba d6 63 7a 87 6c 46" // Go to: Chrome > Lock on search bar > "Connection is secure" > "Certificate is valid" > "Details" > "Show:" "Properties Only"
 char satID0[] = "25544"; // SPACE STATION
 char satID1[] = "33591"; // NOAA 19
 char satID2[] = "38771"; // METOP-B
 char satID3[] = "40069"; // METEOR M2
-char *satIDArray[4] = {satID0, satID1, satID2, satID3};
-double satLatitude;
-double satLongitude;
-int satCoord[4][2] = {{0, 0}, {0, 0}, {0, 0}, {0, 0}};
+char *satIDArray[4] = {satID0, satID1, satID2, satID3}; // Array for easily iterating through satIDs when passing to HTTP get request
+double satLatitude; // Global latitude variable used for returning HTTP get request data
+double satLongitude; // Global longitude variable used for returning HTTP get request data
+int satCoord[4][2] = {{0, 0}, {0, 0}, {0, 0}, {0, 0}}; // Array for X&Y coordinates
+int satIDState; // Store state of tracked satellite ID to auto-update positions
 
 PicoUnicorn unicorn = PicoUnicorn();
 // Pixel coordinates for each blue and green pixel, creating the image of the (mercator projected) earth
@@ -84,54 +84,87 @@ void loop() {
     if (unicorn.is_pressed(unicorn.A)) {
       displayEarth(); // Display image of the earth
       unicorn.set_pixel(satCoord[0][0], satCoord[0][1], satBrightness, 0, 0); // Set red pixel at location of satellite 0
-      
+      satIDState = 0;
+
       // While button held, hold to stop display flashing
       while (unicorn.is_pressed(unicorn.A)) {
         delay(10);
       }
+
       return; // Deal with multiple button presses in order of precedence A > B > X > Y
     }
 
     if (unicorn.is_pressed(unicorn.B)) {
       displayEarth(); // Display image of the earth
       unicorn.set_pixel(satCoord[1][0], satCoord[1][1], satBrightness, 0, 0); // Set red pixel at location of satellite 1
+      satIDState = 1;
 
       // While button held, hold to stop display flashing
       while (unicorn.is_pressed(unicorn.B)) {
         delay(10);
       }
+
       return; // Deal with multiple button presses in order of precedence A > B > X > Y
     }
 
     if (unicorn.is_pressed(unicorn.X)) {
       displayEarth(); // Display image of the earth
       unicorn.set_pixel(satCoord[2][0], satCoord[2][1], satBrightness, 0, 0); // Set red pixel at location of satellite 2
+      satIDState = 2;
 
       // While button held, hold to stop display flashing
       while (unicorn.is_pressed(unicorn.X)) {
         delay(10);
       }
+
       return; // Deal with multiple button presses in order of precedence A > B > X > Y
     }
 
     if (unicorn.is_pressed(unicorn.Y)) {
       displayEarth(); // Display image of the earth
       unicorn.set_pixel(satCoord[3][0], satCoord[3][1], satBrightness, 0, 0); // Set red pixel at location of satellite 3
+      satIDState = 3;
 
       // While button held, hold to stop display flashing
       while (unicorn.is_pressed(unicorn.Y)) {
         delay(10);
       }
+
       return; // Deal with multiple button presses in order of precedence A > B > X > Y
     }
+
   }
 
   updateSatData(); // After 2 min hold, update satellite location data
 
+  displayEarth(); // Display image of the earth
+
+  switch (satIDState) { // Check last known satellite tracking selection
+    case 0: {
+        unicorn.set_pixel(satCoord[0][0], satCoord[0][1], satBrightness, 0, 0); // Set red pixel at location of satellite 0
+        break;
+      }
+    case 1: {
+        unicorn.set_pixel(satCoord[1][0], satCoord[1][1], satBrightness, 0, 0); // Set red pixel at location of satellite 1
+        break;
+      }
+    case 2: {
+        unicorn.set_pixel(satCoord[2][0], satCoord[2][1], satBrightness, 0, 0); // Set red pixel at location of satellite 2
+        break;
+      }
+    case 3: {
+        unicorn.set_pixel(satCoord[3][0], satCoord[3][1], satBrightness, 0, 0); // Set red pixel at location of satellite 3
+        break;
+      }
+
+  }
+
 }
 
 
-void makeHTTPRequest(char *satID) {
+bool makeHTTPRequest(char *satID) {
+
+  bool fail_flag = 0; // Flag for returning when there has been a network connection error of any type
 
   client.setTimeout(10000); // Set a long timeout in case the server is slow to respond or whatever
 
@@ -139,7 +172,8 @@ void makeHTTPRequest(char *satID) {
   if (!client.connect(TEST_HOST, 443))
   {
     Serial.println(F("Connection failed"));
-    return;
+    fail_flag = 1;
+    return fail_flag;
   }
 
   yield();
@@ -162,7 +196,8 @@ void makeHTTPRequest(char *satID) {
   if (client.println() == 0)
   {
     Serial.println(F("Failed to send request"));
-    return;
+    fail_flag = 1;
+    return fail_flag;
   }
 
   // Check HTTP status
@@ -172,7 +207,8 @@ void makeHTTPRequest(char *satID) {
   {
     Serial.print(F("Unexpected response: "));
     Serial.println(status);
-    return;
+    fail_flag = 1;
+    return fail_flag;
   }
 
   // Skip HTTP headers
@@ -180,7 +216,8 @@ void makeHTTPRequest(char *satID) {
   if (!client.find(endOfHeaders))
   {
     Serial.println(F("Invalid response"));
-    return;
+    fail_flag = 1;
+    return fail_flag;
   }
 
   while (client.available() && client.peek() != '{')
@@ -208,11 +245,13 @@ void makeHTTPRequest(char *satID) {
     //    double dec = positions["dec"];
     //    long api_timestamp = positions["timestamp"];
     //    bool eclipsed = positions["eclipsed"];
+    return fail_flag;
 
   } else {
     Serial.print(F("deserializeJson() failed: "));
     Serial.println(error.f_str());
-    return;
+    fail_flag = 1;
+    return fail_flag;
   }
 
 }
@@ -227,20 +266,24 @@ void updateSatData() {
     Serial.print(satIDArray[i]);
 
     // Retrieve data from n2yo api
-    makeHTTPRequest(satIDArray[i]);
+    bool flag = makeHTTPRequest(satIDArray[i]);
 
     // Convert latitude & longitude into useful Unicorn display X & Y coordinates
-    satCoord[i][0] = convertLongitude();
-    satCoord[i][1] = convertLatitude();
+    if (flag == 0) { // If there hasn't been an connection error. Else: satCoords stay the same
+      satCoord[i][0] = convertLongitude();
+      satCoord[i][1] = convertLatitude();
 
-    Serial.print(" DONE LAT:");
-    Serial.print(satLatitude);
-    Serial.print(" LONG:");
-    Serial.print(satLongitude);
-    Serial.print(" X: ");
-    Serial.print(satCoord[i][1]);
-    Serial.print(" Y: ");
-    Serial.println(satCoord[i][0]);
+      Serial.print(" DONE LAT:");
+      Serial.print(satLatitude);
+      Serial.print(" LONG:");
+      Serial.print(satLongitude);
+      Serial.print(" X: ");
+      Serial.print(satCoord[i][1]);
+      Serial.print(" Y: ");
+      Serial.println(satCoord[i][0]);
+    } else{
+      Serial.println(" HTTP get request error");
+    }
   }
 }
 
@@ -258,12 +301,16 @@ void displayEarth() {
 
 
 int convertLongitude() {
-  int convertLongitude = round(15 * ((satLongitude + 180) / 360));
+  int convertLongitude = round(15 * ((satLongitude + 180) / 360)); // Map longitude to X pixels 0 to 15
+  convertLongitude = max(convertLongitude, 0); // Handle cases where X would provisionally be to the left of the screen
+  convertLongitude = min(convertLongitude, 15); // Handle cases where X would provisionally be to the right of the screen
   return convertLongitude;
 }
 
 
 int convertLatitude() {
-  int convertLatitude = 6 - round(6 * ((satLatitude + 90) / 180));
+  int convertLatitude = 6 - round(6 * ((satLatitude + 90) / 180)); // Map latitude to Y pixels 0 to 6
+  convertLatitude = max(convertLatitude, 0); // Handle cases where Y would provisionally be above the screen
+  convertLatitude = min(convertLatitude, 6); // Handle cases where Y would provisionally be below the screen
   return convertLatitude;
 }
