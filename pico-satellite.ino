@@ -130,7 +130,7 @@ void loop() {
         delay(250);
         unicorn.set_pixel(satCoord[1][0], satCoord[1][1], satBrightness, 0, 0);
         delay(250);
-        unicorn.set_pixel(satCoord[1][0], satCoord[1][1], satBrightness, 0, 0);
+        unicorn.set_pixel(satCoord[1][0], satCoord[1][1], 0, 0, 0);
         delay(250);
         unicorn.set_pixel(satCoord[1][0], satCoord[1][1], satBrightness, 0, 0);
       }
