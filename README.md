@@ -11,6 +11,13 @@ Consequntly, this project just uses a simple API.
 
 With the v1.1.0 release, 4 different satellites are abled to be tracked with the buttons controlling which satellite is currently in view.
 
+With the v1.2.0 release, the display can create a trail for the satellite, showing the orbital pattern appearing in real time. To engage the hold view mode:
+* Press and hold one of the satellite buttons for more than 2 seconds, and release.
+* The current satellite location will blink twice in success
+* The display will now create a trail of red at each location of the satellite, showing the orbital pattern
+* To cancel, just refresh the display by clicking one of the buttons.
+
+
 ![Tracking the ISS](/assets/iss_track.jpg)
 
 ## Software
