@@ -18,6 +18,7 @@ double satLatitude; // Global latitude variable used for returning HTTP get requ
 double satLongitude; // Global longitude variable used for returning HTTP get request data
 int satCoord[4][2] = {{0, 0}, {0, 0}, {0, 0}, {0, 0}}; // Array for X&Y coordinates
 int satIDState; // Store state of tracked satellite ID to auto-update positions
+int holdFlag = 0; // Initialise hold flag with value of 0
 
 PicoUnicorn unicorn = PicoUnicorn();
 // Pixel coordinates for each blue and green pixel, creating the image of the (mercator projected) earth
@@ -86,9 +87,24 @@ void loop() {
       unicorn.set_pixel(satCoord[0][0], satCoord[0][1], satBrightness, 0, 0); // Set red pixel at location of satellite 0
       satIDState = 0;
 
+      int pressTime = millis(); // Record time at button press
+
       // While button held, hold to stop display flashing
       while (unicorn.is_pressed(unicorn.A)) {
         delay(10);
+      }
+
+      if (millis() - pressTime > 2000) { // If button press exceeded 2 seconds
+        holdFlag = (holdFlag + 1) % 2; // Update hold flag with rollover above 1
+
+        // Flash red pixel to confirm hold flag
+        unicorn.set_pixel(satCoord[0][0], satCoord[0][1], 0, 0, 0);
+        delay(250);
+        unicorn.set_pixel(satCoord[0][0], satCoord[0][1], satBrightness, 0, 0);
+        delay(250);
+        unicorn.set_pixel(satCoord[0][0], satCoord[0][1], 0, 0, 0);
+        delay(250);
+        unicorn.set_pixel(satCoord[0][0], satCoord[0][1], satBrightness, 0, 0);
       }
 
       return; // Deal with multiple button presses in order of precedence A > B > X > Y
@@ -99,9 +115,24 @@ void loop() {
       unicorn.set_pixel(satCoord[1][0], satCoord[1][1], satBrightness, 0, 0); // Set red pixel at location of satellite 1
       satIDState = 1;
 
+      int pressTime = millis(); // Record time at button press
+
       // While button held, hold to stop display flashing
       while (unicorn.is_pressed(unicorn.B)) {
         delay(10);
+      }
+
+      if (millis() - pressTime > 2000) { // If button press exceeded 2 seconds
+        holdFlag = (holdFlag + 1) % 2; // Update hold flag with rollover above 1
+
+        // Flash red pixel to confirm hold flag
+        unicorn.set_pixel(satCoord[1][0], satCoord[1][1], 0, 0, 0);
+        delay(250);
+        unicorn.set_pixel(satCoord[1][0], satCoord[1][1], satBrightness, 0, 0);
+        delay(250);
+        unicorn.set_pixel(satCoord[1][0], satCoord[1][1], satBrightness, 0, 0);
+        delay(250);
+        unicorn.set_pixel(satCoord[1][0], satCoord[1][1], satBrightness, 0, 0);
       }
 
       return; // Deal with multiple button presses in order of precedence A > B > X > Y
@@ -112,9 +143,24 @@ void loop() {
       unicorn.set_pixel(satCoord[2][0], satCoord[2][1], satBrightness, 0, 0); // Set red pixel at location of satellite 2
       satIDState = 2;
 
+      int pressTime = millis(); // Record time at button press
+
       // While button held, hold to stop display flashing
       while (unicorn.is_pressed(unicorn.X)) {
         delay(10);
+      }
+
+      if (millis() - pressTime > 2000) { // If button press exceeded 2 seconds
+        holdFlag = (holdFlag + 1) % 2; // Update hold flag with rollover above 1
+
+        // Flash red pixel to confirm hold flag
+        unicorn.set_pixel(satCoord[2][0], satCoord[2][1], 0, 0, 0);
+        delay(250);
+        unicorn.set_pixel(satCoord[2][0], satCoord[2][1], satBrightness, 0, 0);
+        delay(250);
+        unicorn.set_pixel(satCoord[2][0], satCoord[2][1], 0, 0, 0);
+        delay(250);
+        unicorn.set_pixel(satCoord[2][0], satCoord[2][1], satBrightness, 0, 0);
       }
 
       return; // Deal with multiple button presses in order of precedence A > B > X > Y
@@ -125,9 +171,24 @@ void loop() {
       unicorn.set_pixel(satCoord[3][0], satCoord[3][1], satBrightness, 0, 0); // Set red pixel at location of satellite 3
       satIDState = 3;
 
+      int pressTime = millis(); // Record time at button press
+
       // While button held, hold to stop display flashing
       while (unicorn.is_pressed(unicorn.Y)) {
         delay(10);
+      }
+
+      if (millis() - pressTime > 2000) { // If button press exceeded 2 seconds
+        holdFlag = (holdFlag + 1) % 2; // Update hold flag with rollover above 1
+
+        // Flash red pixel to confirm hold flag
+        unicorn.set_pixel(satCoord[3][0], satCoord[3][1], 0, 0, 0);
+        delay(250);
+        unicorn.set_pixel(satCoord[3][0], satCoord[3][1], satBrightness, 0, 0);
+        delay(250);
+        unicorn.set_pixel(satCoord[3][0], satCoord[3][1], 0, 0, 0);
+        delay(250);
+        unicorn.set_pixel(satCoord[3][0], satCoord[3][1], satBrightness, 0, 0);
       }
 
       return; // Deal with multiple button presses in order of precedence A > B > X > Y
@@ -137,7 +198,9 @@ void loop() {
 
   updateSatData(); // After 2 min hold, update satellite location data
 
-  displayEarth(); // Display image of the earth
+  if (holdFlag == 0) { // If hold flag is inactive (hasn't been selected)
+    displayEarth(); // Display image of the earth
+  }
 
   switch (satIDState) { // Check last known satellite tracking selection
     case 0: {
@@ -281,7 +344,7 @@ void updateSatData() {
       Serial.print(satCoord[i][1]);
       Serial.print(" Y: ");
       Serial.println(satCoord[i][0]);
-    } else{
+    } else {
       Serial.println(" HTTP get request error");
     }
   }
