@@ -7,8 +7,8 @@ char ssid[] = "YOUR_NETWORK_SSID_HERE";       // your network SSID (name)
 char password[] = "YOUR_NETWORK_KEY_HERE";  // your network key
 #define apiKey "YOUR_API_KEY_HERE" // your api key
 WiFiClientSecure client;
-#define TEST_HOST "api.n2yo.com"
-#define TEST_HOST_FINGERPRINT "42 7e 52 21 b0 ef 4e 3b c8 d0 59 2e c6 ba d6 63 7a 87 6c 46" // Go to: Chrome > Lock on search bar > "Connection is secure" > "Certificate is valid" > "Details" > "Show:" "Properties Only"
+#define API_HOST "api.n2yo.com"
+#define API_HOST_FINGERPRINT "42 7e 52 21 b0 ef 4e 3b c8 d0 59 2e c6 ba d6 63 7a 87 6c 46" // Go to: Chrome > Lock on search bar > "Connection is secure" > "Certificate is valid" > "Details" > "Show:" "Properties Only"
 char satID0[] = "25544"; // SPACE STATION
 char satID1[] = "33591"; // NOAA 19
 char satID2[] = "38771"; // METOP-B
@@ -20,7 +20,8 @@ int satCoord[4][2] = {{0, 0}, {0, 0}, {0, 0}, {0, 0}}; // Array for X&Y coordina
 int satIDState; // Store state of tracked satellite ID to auto-update positions
 int holdFlag = 0; // Initialise hold flag with value of 0
 
-PicoUnicorn unicorn = PicoUnicorn();
+PicoUnicorn unicorn = PicoUnicorn(); // Initialise unicorn display object
+
 // Pixel coordinates for each blue and green pixel, creating the image of the (mercator projected) earth
 int earthBlue[64][2] = {
   {0, 0}, {1, 0}, {5, 0}, {7, 0}, {8, 0}, {10, 0}, {15, 0},
@@ -41,14 +42,21 @@ int earthGreen[48][2] = {
   {4, 6},
 };
 int earthBrightness = 64; // set brightness for earth image
-int satBrightness = 164; // set brightness for satellite pixel
+int satBrightness = 128; // set brightness for satellite pixel
 
-void setup() {
+
+void setup() { // Core 0 setup
   // Initialise Pimoroni Unicorn and clear the display
   unicorn.init();
   unicorn.clear();
 
   displayEarth(); // Display image of the earth
+
+  //unicorn.set_pixel(satCoord[0][0], satCoord[0][1], satBrightness, 0, 0); // Set red pixel at location of satellite 0
+}
+
+
+void setup1() { // Core 1 setup
 
   Serial.begin(115200);
 
@@ -69,18 +77,15 @@ void setup() {
   Serial.println("IP address: ");
   IPAddress ip = WiFi.localIP();
   Serial.println(ip);
-  client.setFingerprint(TEST_HOST_FINGERPRINT);
+  client.setFingerprint(API_HOST_FINGERPRINT);
 
   updateSatData(); // HTTP request to initially set satellite data
-  unicorn.set_pixel(satCoord[0][0], satCoord[0][1], satBrightness, 0, 0); // Set red pixel at location of satellite 0
+
 }
 
+void loop() { // Core 0 loop
 
-void loop() {
-
-  // Hold for 2 minutes to slow api request rate
-  int startTime = millis();
-  while (millis() - startTime <= 120000) {
+  while (!rp2040.fifo.available()) { // While core 1 hasn't pushed anything to the queue to indicate new readings
 
     if (unicorn.is_pressed(unicorn.A)) {
       displayEarth(); // Display image of the earth
@@ -95,16 +100,12 @@ void loop() {
       }
 
       if (millis() - pressTime > 2000) { // If button press exceeded 2 seconds
-        holdFlag = (holdFlag + 1) % 2; // Update hold flag with rollover above 1
+        holdFlag = 1; // Update hold flag
 
-        // Flash red pixel to confirm hold flag
-        unicorn.set_pixel(satCoord[0][0], satCoord[0][1], 0, 0, 0);
-        delay(250);
-        unicorn.set_pixel(satCoord[0][0], satCoord[0][1], satBrightness, 0, 0);
-        delay(250);
-        unicorn.set_pixel(satCoord[0][0], satCoord[0][1], 0, 0, 0);
-        delay(250);
-        unicorn.set_pixel(satCoord[0][0], satCoord[0][1], satBrightness, 0, 0);
+        holdFlash(0); // Flash red pixel to confirm hold flag
+
+      } else { // If button press did not exceed 2 seconds
+        holdFlag = 0; // Update hold flag
       }
 
       return; // Deal with multiple button presses in order of precedence A > B > X > Y
@@ -125,14 +126,10 @@ void loop() {
       if (millis() - pressTime > 2000) { // If button press exceeded 2 seconds
         holdFlag = (holdFlag + 1) % 2; // Update hold flag with rollover above 1
 
-        // Flash red pixel to confirm hold flag
-        unicorn.set_pixel(satCoord[1][0], satCoord[1][1], 0, 0, 0);
-        delay(250);
-        unicorn.set_pixel(satCoord[1][0], satCoord[1][1], satBrightness, 0, 0);
-        delay(250);
-        unicorn.set_pixel(satCoord[1][0], satCoord[1][1], 0, 0, 0);
-        delay(250);
-        unicorn.set_pixel(satCoord[1][0], satCoord[1][1], satBrightness, 0, 0);
+        holdFlash(1); // Flash red pixel to confirm hold flag
+
+      } else { // If button press did not exceed 2 seconds
+        holdFlag = 0; // Update hold flag
       }
 
       return; // Deal with multiple button presses in order of precedence A > B > X > Y
@@ -153,14 +150,10 @@ void loop() {
       if (millis() - pressTime > 2000) { // If button press exceeded 2 seconds
         holdFlag = (holdFlag + 1) % 2; // Update hold flag with rollover above 1
 
-        // Flash red pixel to confirm hold flag
-        unicorn.set_pixel(satCoord[2][0], satCoord[2][1], 0, 0, 0);
-        delay(250);
-        unicorn.set_pixel(satCoord[2][0], satCoord[2][1], satBrightness, 0, 0);
-        delay(250);
-        unicorn.set_pixel(satCoord[2][0], satCoord[2][1], 0, 0, 0);
-        delay(250);
-        unicorn.set_pixel(satCoord[2][0], satCoord[2][1], satBrightness, 0, 0);
+        holdFlash(2); // Flash red pixel to confirm hold flag
+
+      } else { // If button press did not exceed 2 seconds
+        holdFlag = 0; // Update hold flag
       }
 
       return; // Deal with multiple button presses in order of precedence A > B > X > Y
@@ -181,47 +174,83 @@ void loop() {
       if (millis() - pressTime > 2000) { // If button press exceeded 2 seconds
         holdFlag = (holdFlag + 1) % 2; // Update hold flag with rollover above 1
 
-        // Flash red pixel to confirm hold flag
-        unicorn.set_pixel(satCoord[3][0], satCoord[3][1], 0, 0, 0);
-        delay(250);
-        unicorn.set_pixel(satCoord[3][0], satCoord[3][1], satBrightness, 0, 0);
-        delay(250);
-        unicorn.set_pixel(satCoord[3][0], satCoord[3][1], 0, 0, 0);
-        delay(250);
-        unicorn.set_pixel(satCoord[3][0], satCoord[3][1], satBrightness, 0, 0);
+        holdFlash(3); // Flash red pixel to confirm hold flag
+
+      } else { // If button press did not exceed 2 seconds
+        holdFlag = 0; // Update hold flag
       }
 
       return; // Deal with multiple button presses in order of precedence A > B > X > Y
     }
-
   }
 
-  updateSatData(); // After 2 min hold, update satellite location data
+  rp2040.fifo.pop(); // Take value out of queue
 
   if (holdFlag == 0) { // If hold flag is inactive (hasn't been selected)
-    displayEarth(); // Display image of the earth
+    displayEarth(); // Refresh displayed image of the earth
+  } else {
+    switch (satIDState) { // Check last known satellite tracking selection
+      case 0: {
+          unicorn.set_pixel(satCoord[0][0], satCoord[0][1], satBrightness, 0, 0); // Set red pixel at location of satellite 0
+          break;
+        }
+      case 1: {
+          unicorn.set_pixel(satCoord[1][0], satCoord[1][1], satBrightness, 0, 0); // Set red pixel at location of satellite 1
+          break;
+        }
+      case 2: {
+          unicorn.set_pixel(satCoord[2][0], satCoord[2][1], satBrightness, 0, 0); // Set red pixel at location of satellite 2
+          break;
+        }
+      case 3: {
+          unicorn.set_pixel(satCoord[3][0], satCoord[3][1], satBrightness, 0, 0); // Set red pixel at location of satellite 3
+          break;
+        }
+    }
   }
+}
 
-  switch (satIDState) { // Check last known satellite tracking selection
-    case 0: {
-        unicorn.set_pixel(satCoord[0][0], satCoord[0][1], satBrightness, 0, 0); // Set red pixel at location of satellite 0
-        break;
-      }
-    case 1: {
-        unicorn.set_pixel(satCoord[1][0], satCoord[1][1], satBrightness, 0, 0); // Set red pixel at location of satellite 1
-        break;
-      }
-    case 2: {
-        unicorn.set_pixel(satCoord[2][0], satCoord[2][1], satBrightness, 0, 0); // Set red pixel at location of satellite 2
-        break;
-      }
-    case 3: {
-        unicorn.set_pixel(satCoord[3][0], satCoord[3][1], satBrightness, 0, 0); // Set red pixel at location of satellite 3
-        break;
-      }
 
+void loop1() { // Core 1 loop
+
+  delay(120000); // Hold for 2 minutes to slow api request rate
+  // Not sure if this is strictly the best method of holding for 2 min, however this core doesn't need to do anything else during this time.
+  // Just keep it a secret between us and don't tell anyone on the arduino.cc forum.
+
+  updateSatData(); // After 2 min hold, update satellite location data
+  rp2040.fifo.push(1); // Push value '1' to queue to indicate new readings
+
+}
+
+
+void updateSatData() {
+  // loop for all 4 satellite ID's set
+  for (int i = 0; i <= 3; i++) {
+    Serial.print("HTTP request ");
+    Serial.print(i);
+    Serial.print(" satID: ");
+    Serial.print(satIDArray[i]);
+
+    // Retrieve data from n2yo api
+    bool flag = makeHTTPRequest(satIDArray[i]);
+
+    // Convert latitude & longitude into useful Unicorn display X & Y coordinates
+    if (flag == 0) { // If there hasn't been an connection error. Else: satCoords stay the same
+      satCoord[i][0] = convertLongitude();
+      satCoord[i][1] = convertLatitude();
+
+      Serial.print(" DONE LAT:");
+      Serial.print(satLatitude);
+      Serial.print(" LONG:");
+      Serial.print(satLongitude);
+      Serial.print(" X: ");
+      Serial.print(satCoord[i][1]);
+      Serial.print(" Y: ");
+      Serial.println(satCoord[i][0]);
+    } else {
+      Serial.println(" HTTP get request error");
+    }
   }
-
 }
 
 
@@ -232,7 +261,7 @@ bool makeHTTPRequest(char *satID) {
   client.setTimeout(10000); // Set a long timeout in case the server is slow to respond or whatever
 
   // Opening connection to server
-  if (!client.connect(TEST_HOST, 443))
+  if (!client.connect(API_HOST, 443))
   {
     Serial.println(F("Connection failed"));
     fail_flag = 1;
@@ -252,7 +281,7 @@ bool makeHTTPRequest(char *satID) {
 
   //Headers
   client.print(F("Host: "));
-  client.println(TEST_HOST);
+  client.println(API_HOST);
 
   client.println(F("Cache-Control: no-cache"));
 
@@ -320,37 +349,6 @@ bool makeHTTPRequest(char *satID) {
 }
 
 
-void updateSatData() {
-  // loop for all 4 satellite ID's set
-  for (int i = 0; i <= 3; i++) {
-    Serial.print("HTTP request ");
-    Serial.print(i);
-    Serial.print(" satID: ");
-    Serial.print(satIDArray[i]);
-
-    // Retrieve data from n2yo api
-    bool flag = makeHTTPRequest(satIDArray[i]);
-
-    // Convert latitude & longitude into useful Unicorn display X & Y coordinates
-    if (flag == 0) { // If there hasn't been an connection error. Else: satCoords stay the same
-      satCoord[i][0] = convertLongitude();
-      satCoord[i][1] = convertLatitude();
-
-      Serial.print(" DONE LAT:");
-      Serial.print(satLatitude);
-      Serial.print(" LONG:");
-      Serial.print(satLongitude);
-      Serial.print(" X: ");
-      Serial.print(satCoord[i][1]);
-      Serial.print(" Y: ");
-      Serial.println(satCoord[i][0]);
-    } else {
-      Serial.println(" HTTP get request error");
-    }
-  }
-}
-
-
 void displayEarth() {
   // Display image of the earth
   for (int i = 0; i <= 63; i++) {
@@ -376,4 +374,15 @@ int convertLatitude() {
   convertLatitude = max(convertLatitude, 0); // Handle cases where Y would provisionally be above the screen
   convertLatitude = min(convertLatitude, 6); // Handle cases where Y would provisionally be below the screen
   return convertLatitude;
+}
+
+
+void holdFlash(int satID) {
+  unicorn.set_pixel(satCoord[satID][0], satCoord[satID][1], 0, 0, 0);
+  delay(250);
+  unicorn.set_pixel(satCoord[satID][0], satCoord[satID][1], satBrightness, 0, 0);
+  delay(250);
+  unicorn.set_pixel(satCoord[satID][0], satCoord[satID][1], 0, 0, 0);
+  delay(250);
+  unicorn.set_pixel(satCoord[satID][0], satCoord[satID][1], satBrightness, 0, 0);
 }
