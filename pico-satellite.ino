@@ -51,8 +51,13 @@ void setup() { // Core 0 setup
   unicorn.clear();
 
   displayEarth(); // Display image of the earth
+  
+  while (!rp2040.fifo.available()) { // While core 1 hasn't pushed anything to the queue to indicate new readings
+    delay(100);
+  }
 
-  //unicorn.set_pixel(satCoord[0][0], satCoord[0][1], satBrightness, 0, 0); // Set red pixel at location of satellite 0
+  rp2040.fifo.pop(); // Take value out of queue
+  unicorn.set_pixel(satCoord[0][0], satCoord[0][1], satBrightness, 0, 0); // Set red pixel at location of satellite 00
 }
 
 
@@ -80,6 +85,7 @@ void setup1() { // Core 1 setup
   client.setFingerprint(API_HOST_FINGERPRINT);
 
   updateSatData(); // HTTP request to initially set satellite data
+  rp2040.fifo.push(1); // Push value '1' to queue to indicate new readings
 
 }
 
