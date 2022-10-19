@@ -8,7 +8,7 @@ char password[] = "YOUR_NETWORK_KEY_HERE";  // your network key
 #define apiKey "YOUR_API_KEY_HERE" // your api key
 WiFiClientSecure client;
 #define API_HOST "api.n2yo.com"
-#define API_HOST_FINGERPRINT "42 7e 52 21 b0 ef 4e 3b c8 d0 59 2e c6 ba d6 63 7a 87 6c 46" // Go to: Chrome > Lock on search bar > "Connection is secure" > "Certificate is valid" > "Details" > "Show:" "Properties Only"
+#define API_HOST_FINGERPRINT "HOST_FINGERPRINT" // Go to: Chrome > Lock on search bar > "Connection is secure" > "Certificate is valid" > "Details" > "Show:" "Properties Only"
 char satID0[] = "25544"; // SPACE STATION
 char satID1[] = "33591"; // NOAA 19
 char satID2[] = "38771"; // METOP-B
@@ -328,21 +328,10 @@ bool makeHTTPRequest(char *satID) {
   DeserializationError error = deserializeJson(doc, client);
 
   if (!error) {
-    //    JsonObject info = doc["info"];
-    //    const char* satname = info["satname"];
-    //    int satid = info["satid"];
-    //    int transactionscount = info["transactionscount"];
 
     JsonObject positions = doc["positions"][0];
     satLatitude = positions["satlatitude"];
     satLongitude = positions["satlongitude"];
-    //    float sataltitude = positions["sataltitude"];
-    //    float azimuth = positions["azimuth"];
-    //    float elevation = positions["elevation"];
-    //    double ra = positions["ra"];
-    //    double dec = positions["dec"];
-    //    long api_timestamp = positions["timestamp"];
-    //    bool eclipsed = positions["eclipsed"];
     return fail_flag;
 
   } else {
